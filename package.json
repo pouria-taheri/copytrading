@@ -10,7 +10,8 @@
     "test-api": "node test-api.js"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "deepseek-copytrader": "file:"
   },
   "engines": {
     "node": ">=14.0.0"

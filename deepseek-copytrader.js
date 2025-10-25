@@ -7,10 +7,10 @@ const fs = require("fs").promises;
 const path = require("path");
 
 // Configuration
-const API_URL = "https://nof1.ai/api/positions?limit=1000";
+const API_URL = "https://nof1.ai/api/account-totals";
 const SEEN_POSITIONS_FILE = "seen_positions.json";
-const POLL_INTERVAL = 12000; // 12 seconds
-const ERROR_RETRY_INTERVAL = 30000; // 30 seconds
+const POLL_INTERVAL = 15000; // 15 seconds
+const ERROR_RETRY_INTERVAL = 45000; // 45 seconds
 const LOG_VERBOSE = true;
 
 class DeepSeekCopyTrader {
@@ -60,83 +60,70 @@ class DeepSeekCopyTrader {
   logDetailedData(data) {
     if (!LOG_VERBOSE) return;
 
-    if (!data || !data.positions || !Array.isArray(data.positions)) {
-      console.log(`[${this.getTimestamp()}] 📊 No position data available`);
+    if (!data || !data.accountTotals || !Array.isArray(data.accountTotals)) {
+      console.log(`[${this.getTimestamp()}] 📊 No account data available`);
       return;
     }
 
-    // Find the DeepSeek model
-    const deepSeekModel = data.positions.find(
-      (model) =>
-        model && model.id && model.id.toLowerCase().startsWith("deepseek")
+    // Filter target model accounts (DeepSeek and Qwen)
+    const targetAccounts = data.accountTotals.filter((account) => {
+      if (!account || !account.model_id) return false;
+      const modelId = account.model_id.toLowerCase();
+      return modelId.startsWith("deepseek") || modelId.startsWith("qwen");
+    });
+
+    if (targetAccounts.length === 0) {
+      console.log(
+        `[${this.getTimestamp()}] 📊 No DeepSeek or Qwen accounts found in data`
+      );
+      return;
+    }
+
+    console.log(`[${this.getTimestamp()}] 📊 === TARGET MODEL POSITION DATA ===`);
+    console.log(
+      `[${this.getTimestamp()}] 🤖 Found ${
+        targetAccounts.length
+      } DeepSeek/Qwen accounts`
     );
 
-    if (!deepSeekModel) {
-      console.log(
-        `[${this.getTimestamp()}] 📊 DeepSeek model not found in data`
-      );
-      return;
-    }
+    targetAccounts.forEach((account, accountIndex) => {
+      const modelIcon = account.model_id.toLowerCase().startsWith("deepseek") ? "🤖" : "🧠";
+      console.log(`[${this.getTimestamp()}] ${modelIcon} Account ${accountIndex + 1}: ${account.model_id}`);
+      console.log(`[${this.getTimestamp()}]   💰 Total Equity: $${account.dollar_equity?.toFixed(2) || 'N/A'}`);
+      console.log(`[${this.getTimestamp()}]   📈 Realized PnL: $${account.realized_pnl?.toFixed(2) || 'N/A'}`);
+      console.log(`[${this.getTimestamp()}]   📊 Unrealized PnL: $${account.total_unrealized_pnl?.toFixed(2) || 'N/A'}`);
+      console.log(`[${this.getTimestamp()}]   📈 Sharpe Ratio: ${account.sharpe_ratio?.toFixed(2) || 'N/A'}`);
+      console.log(`[${this.getTimestamp()}]   📊 Cumulative PnL %: ${account.cum_pnl_pct?.toFixed(2) || 'N/A'}%`);
+      
+      if (account.positions && typeof account.positions === 'object') {
+        const positionCount = Object.keys(account.positions).length;
+        console.log(`[${this.getTimestamp()}]   📈 Active Positions: ${positionCount}`);
+        
+        Object.entries(account.positions).forEach(([symbol, position]) => {
+          const isNewPosition = !this.seenPositions.has(position.entry_oid);
+          const statusIcon = isNewPosition ? "🆕" : "📊";
+          const pnlIcon = position.unrealized_pnl >= 0 ? "📈" : "📉";
+          
+          console.log(`[${this.getTimestamp()}]   ${statusIcon} ${symbol}:`);
+          console.log(`[${this.getTimestamp()}]     💰 Entry Price: $${position.entry_price}`);
+          console.log(`[${this.getTimestamp()}]     📊 Current Price: $${position.current_price}`);
+          console.log(`[${this.getTimestamp()}]     ${pnlIcon} Unrealized PnL: $${position.unrealized_pnl?.toFixed(2) || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}]     ⚡ Leverage: ${position.leverage}x`);
+          console.log(`[${this.getTimestamp()}]     📦 Quantity: ${position.quantity}`);
+          console.log(`[${this.getTimestamp()}]     🎯 Confidence: ${position.confidence}`);
+          console.log(`[${this.getTimestamp()}]     🆔 Entry OID: ${position.entry_oid}`);
+          console.log(`[${this.getTimestamp()}]     💸 Commission: $${position.commission}`);
+          console.log(`[${this.getTimestamp()}]     🎯 Margin: $${position.margin?.toFixed(2) || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}]     🛑 Stop Loss: $${position.exit_plan?.stop_loss || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}]     🎯 Profit Target: $${position.exit_plan?.profit_target || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}]     ---`);
+        });
+      } else {
+        console.log(`[${this.getTimestamp()}]   📊 No active positions`);
+      }
+    });
 
-    console.log(`[${this.getTimestamp()}] 📊 === DEEPSEEK POSITION DATA ===`);
-    console.log(`[${this.getTimestamp()}] 🤖 Model: ${deepSeekModel.id}`);
-
-    if (
-      deepSeekModel.positions &&
-      typeof deepSeekModel.positions === "object"
-    ) {
-      const positionCount = Object.keys(deepSeekModel.positions).length;
-      console.log(
-        `[${this.getTimestamp()}] 📈 Active positions: ${positionCount}`
-      );
-
-      Object.entries(deepSeekModel.positions).forEach(([symbol, position]) => {
-        const isNewPosition = !this.seenPositions.has(position.entry_oid);
-        const statusIcon = isNewPosition ? "🆕" : "📊";
-
-        console.log(`[${this.getTimestamp()}] ${statusIcon} ${symbol}:`);
-        console.log(
-          `[${this.getTimestamp()}]   📊 Entry Price: $${position.entry_price}`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   📈 Current Price: $${
-            position.current_price
-          }`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   💵 Unrealized PnL: $${
-            position.unrealized_pnl
-          }`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   ⚡ Leverage: ${position.leverage}x`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   ⏰ Entry Time: ${this.formatEntryTime(
-            position.entry_time
-          )}`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   🆔 Entry OID: ${position.entry_oid}`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   📦 Quantity: ${position.quantity}`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   💸 Commission: $${position.commission}`
-        );
-        console.log(
-          `[${this.getTimestamp()}]   🎯 Margin: $${position.margin}`
-        );
-        console.log(`[${this.getTimestamp()}]   ---`);
-      });
-    } else {
-      console.log(
-        `[${this.getTimestamp()}] 📊 No positions found for DeepSeek model`
-      );
-    }
-
-    console.log(`[${this.getTimestamp()}] 📊 === END DEEPSEEK DATA ===`);
+    console.log(`[${this.getTimestamp()}] 📊 === END TARGET MODEL DATA ===`);
   }
 
   async fetchPositions() {
@@ -150,19 +137,21 @@ class DeepSeekCopyTrader {
         );
 
         const response = await axios.get(API_URL, {
-          timeout: 20000,
+          timeout: 15000,
           headers: {
             "User-Agent": "DeepSeekCopyTrader/1.0",
             Accept: "application/json",
+            Connection: "keep-alive",
           },
           decompress: true,
+          maxRedirects: 3,
         });
 
         const data = response.data;
         console.log(
           `[${this.getTimestamp()}] ✅ Successfully fetched ${
-            data.positions ? data.positions.length : 0
-          } models`
+            data.accountTotals ? data.accountTotals.length : 0
+          } accounts`
         );
 
         // Detailed data logging
@@ -206,61 +195,98 @@ class DeepSeekCopyTrader {
     }
   }
 
-  findDeepSeekModel(data) {
-    if (!data || !data.positions || !Array.isArray(data.positions)) {
-      return null;
+  findTargetModelAccounts(data) {
+    if (!data || !data.accountTotals || !Array.isArray(data.accountTotals)) {
+      return [];
     }
 
-    return data.positions.find((model) => {
-      return model && model.id && model.id.toLowerCase().startsWith("deepseek");
+    return data.accountTotals.filter((account) => {
+      if (!account || !account.model_id) return false;
+      const modelId = account.model_id.toLowerCase();
+      return modelId.startsWith("deepseek") || modelId.startsWith("qwen");
     });
   }
 
-  async processPositions(positions) {
-    if (!positions || typeof positions !== "object") {
+  async processAccounts(accounts) {
+    if (!accounts || !Array.isArray(accounts)) {
       return;
     }
 
-    // positions is an object where keys are symbols and values are position data
-    for (const [symbol, positionData] of Object.entries(positions)) {
-      const { entry_oid, entry_price, leverage, quantity, entry_time } =
-        positionData;
+    // Process each account's positions
+    for (const account of accounts) {
+      const { model_id, positions } = account;
 
-      if (!entry_oid || entry_oid === -1) {
+      if (!positions || typeof positions !== 'object') {
         continue;
       }
 
-      if (!this.seenPositions.has(entry_oid)) {
-        this.seenPositions.add(entry_oid);
-        await this.saveSeenPositions();
-
-        // Enhanced alert for new positions
-        console.log(`[${this.getTimestamp()}] 🚨 NEW POSITION OPENED! 🚨`);
-        console.log(`[${this.getTimestamp()}] Symbol: ${symbol}`);
-        console.log(`[${this.getTimestamp()}] Entry Price: $${entry_price}`);
-        console.log(`[${this.getTimestamp()}] Leverage: ${leverage}x`);
-        console.log(`[${this.getTimestamp()}] Quantity: ${quantity}`);
-        console.log(
-          `[${this.getTimestamp()}] Entry Time: ${this.formatEntryTime(
-            entry_time
-          )}`
-        );
-        console.log(`[${this.getTimestamp()}] ------------------------------`);
-
-        // Call the placeholder function
-        await this.openTrade(
-          symbol,
+      // Process each position in the account
+      for (const [symbol, position] of Object.entries(positions)) {
+        const {
+          entry_oid,
           entry_price,
           leverage,
           quantity,
           entry_time,
-          entry_oid
-        );
+          current_price,
+          unrealized_pnl,
+          confidence,
+          exit_plan
+        } = position;
+
+        if (!entry_oid || entry_oid === -1) {
+          continue;
+        }
+
+        if (!this.seenPositions.has(entry_oid)) {
+          this.seenPositions.add(entry_oid);
+          await this.saveSeenPositions();
+
+          // Enhanced alert for new positions
+          const modelIcon = model_id.toLowerCase().startsWith("deepseek")
+            ? "🤖"
+            : "🧠";
+          console.log(
+            `[${this.getTimestamp()}] 🚨 NEW ${model_id.toUpperCase()} POSITION OPENED! 🚨`
+          );
+          console.log(`[${this.getTimestamp()}] ${modelIcon} Model: ${model_id}`);
+          console.log(`[${this.getTimestamp()}] 📊 Symbol: ${symbol}`);
+          console.log(`[${this.getTimestamp()}] 💰 Entry Price: $${entry_price}`);
+          console.log(`[${this.getTimestamp()}] 📊 Current Price: $${current_price}`);
+          console.log(`[${this.getTimestamp()}] ⚡ Leverage: ${leverage}x`);
+          console.log(`[${this.getTimestamp()}] 📦 Quantity: ${quantity}`);
+          console.log(`[${this.getTimestamp()}] 🎯 Confidence: ${confidence}`);
+          console.log(`[${this.getTimestamp()}] 📈 Unrealized PnL: $${unrealized_pnl?.toFixed(2) || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}] 🛑 Stop Loss: $${exit_plan?.stop_loss || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}] 🎯 Profit Target: $${exit_plan?.profit_target || 'N/A'}`);
+          console.log(`[${this.getTimestamp()}] ------------------------------`);
+
+          // Call the placeholder function
+          await this.openTrade(
+            symbol,
+            entry_price,
+            leverage,
+            quantity,
+            entry_time,
+            entry_oid,
+            'long', // Default to long, could be determined by quantity sign
+            model_id
+          );
+        }
       }
     }
   }
 
-  async openTrade(symbol, entryPrice, leverage, quantity, entryTime, entryOid) {
+  async openTrade(
+    symbol,
+    entryPrice,
+    leverage,
+    quantity,
+    entryTime,
+    entryOid,
+    side,
+    modelId
+  ) {
     // Placeholder function - replace with your exchange API call
     console.log(`[${this.getTimestamp()}] 📊 Trade parameters:`, {
       symbol,
@@ -269,13 +295,15 @@ class DeepSeekCopyTrader {
       quantity,
       entryTime,
       entryOid,
+      side,
+      modelId,
     });
 
     // TODO: Implement your exchange API call here
     // Example:
     // await exchangeClient.openPosition({
     //     symbol: symbol,
-    //     side: 'long', // or 'short' based on your logic
+    //     side: side, // 'long' or 'short'
     //     amount: quantity,
     //     leverage: leverage,
     //     price: entryPrice
@@ -285,38 +313,36 @@ class DeepSeekCopyTrader {
   async pollPositions() {
     try {
       const data = await this.fetchPositions();
-      const deepSeekModel = this.findDeepSeekModel(data);
+      const targetAccounts = this.findTargetModelAccounts(data);
 
-      if (!deepSeekModel) {
+      if (targetAccounts.length === 0) {
         console.log(
-          `[${this.getTimestamp()}] ⚠️  DeepSeek model not found in response`
+          `[${this.getTimestamp()}] ⚠️  No DeepSeek or Qwen accounts found in response`
         );
         console.log(
           `[${this.getTimestamp()}] 📋 Available models: ${
-            data.positions ? data.positions.map((m) => m.id).join(", ") : "none"
+            data.accountTotals
+              ? data.accountTotals
+                  .map((a) => a.model_id)
+                  .filter((id, index, arr) => arr.indexOf(id) === index)
+                  .join(", ")
+              : "none"
           }`
         );
         return;
       }
 
       console.log(
-        `[${this.getTimestamp()}] 🎯 Found DeepSeek model: ${deepSeekModel.id}`
+        `[${this.getTimestamp()}] 🎯 Found ${
+          targetAccounts.length
+        } DeepSeek/Qwen accounts`
       );
 
-      if (
-        !deepSeekModel.positions ||
-        typeof deepSeekModel.positions !== "object"
-      ) {
-        console.log(
-          `[${this.getTimestamp()}] ⚠️  No positions found for DeepSeek model`
-        );
-        return;
-      }
-
-      await this.processPositions(deepSeekModel.positions);
-      const positionCount = Object.keys(deepSeekModel.positions).length;
+      await this.processAccounts(targetAccounts);
       console.log(
-        `[${this.getTimestamp()}] ✅ Processed ${positionCount} positions for DeepSeek model`
+        `[${this.getTimestamp()}] ✅ Processed ${
+          targetAccounts.length
+        } DeepSeek/Qwen accounts`
       );
     } catch (error) {
       if (
@@ -341,7 +367,7 @@ class DeepSeekCopyTrader {
     console.log(`[${this.getTimestamp()}] 🔍 Testing connection to NOF1.ai...`);
     try {
       const response = await axios.head("https://nof1.ai", {
-        timeout: 10000,
+        timeout: 5000,
         headers: {
           "User-Agent": "DeepSeekCopyTrader/1.0",
         },
@@ -364,8 +390,9 @@ class DeepSeekCopyTrader {
   }
 
   async start() {
-    console.log("🚀 Starting DeepSeek CopyTrader...");
+    console.log("🚀 Starting DeepSeek & Qwen CopyTrader...");
     console.log(`📡 Monitoring: ${API_URL}`);
+    console.log(`🤖 Target Models: DeepSeek & Qwen`);
     console.log(`⏱️  Poll interval: ${POLL_INTERVAL}ms`);
 
     // Test connection first

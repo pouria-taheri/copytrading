@@ -1,28 +1,15 @@
 {
   "name": "deepseek-copytrader",
   "version": "1.0.0",
-  "description": "Monitors DeepSeek model on NOF1.ai and automatically mirrors new open positions",
+  "description": "Monitors DeepSeek and Qwen models on NOF1.ai",
   "main": "deepseek-copytrader.js",
   "scripts": {
-    "start": "node deepseek-copytrader.js",
-    "test": "node test-deepseek-copytrader.js",
-    "diagnose": "node diagnose-connection.js",
-    "test-api": "node test-api.js"
+    "start": "node deepseek-copytrader.js"
   },
   "dependencies": {
-    "axios": "^1.6.0",
-    "deepseek-copytrader": "file:"
+    "axios": "1.6.0"
   },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "keywords": [
-    "trading",
-    "copy-trading",
-    "deepseek",
-    "nof1",
-    "automation"
-  ],
-  "author": "",
-  "license": "MIT"
+  }
 }

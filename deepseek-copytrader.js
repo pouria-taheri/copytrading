@@ -79,7 +79,9 @@ class DeepSeekCopyTrader {
       return;
     }
 
-    console.log(`[${this.getTimestamp()}] 📊 === TARGET MODEL POSITION DATA ===`);
+    console.log(
+      `[${this.getTimestamp()}] 📊 === TARGET MODEL POSITION DATA ===`
+    );
     console.log(
       `[${this.getTimestamp()}] 🤖 Found ${
         targetAccounts.length
@@ -87,35 +89,99 @@ class DeepSeekCopyTrader {
     );
 
     targetAccounts.forEach((account, accountIndex) => {
-      const modelIcon = account.model_id.toLowerCase().startsWith("deepseek") ? "🤖" : "🧠";
-      console.log(`[${this.getTimestamp()}] ${modelIcon} Account ${accountIndex + 1}: ${account.model_id}`);
-      console.log(`[${this.getTimestamp()}]   💰 Total Equity: $${account.dollar_equity?.toFixed(2) || 'N/A'}`);
-      console.log(`[${this.getTimestamp()}]   📈 Realized PnL: $${account.realized_pnl?.toFixed(2) || 'N/A'}`);
-      console.log(`[${this.getTimestamp()}]   📊 Unrealized PnL: $${account.total_unrealized_pnl?.toFixed(2) || 'N/A'}`);
-      console.log(`[${this.getTimestamp()}]   📈 Sharpe Ratio: ${account.sharpe_ratio?.toFixed(2) || 'N/A'}`);
-      console.log(`[${this.getTimestamp()}]   📊 Cumulative PnL %: ${account.cum_pnl_pct?.toFixed(2) || 'N/A'}%`);
-      
-      if (account.positions && typeof account.positions === 'object') {
+      const modelIcon = account.model_id.toLowerCase().startsWith("deepseek")
+        ? "🤖"
+        : "🧠";
+      console.log(
+        `[${this.getTimestamp()}] ${modelIcon} Account ${accountIndex + 1}: ${
+          account.model_id
+        }`
+      );
+      console.log(
+        `[${this.getTimestamp()}]   💰 Total Equity: $${
+          account.dollar_equity?.toFixed(2) || "N/A"
+        }`
+      );
+      console.log(
+        `[${this.getTimestamp()}]   📈 Realized PnL: $${
+          account.realized_pnl?.toFixed(2) || "N/A"
+        }`
+      );
+      console.log(
+        `[${this.getTimestamp()}]   📊 Unrealized PnL: $${
+          account.total_unrealized_pnl?.toFixed(2) || "N/A"
+        }`
+      );
+      console.log(
+        `[${this.getTimestamp()}]   📈 Sharpe Ratio: ${
+          account.sharpe_ratio?.toFixed(2) || "N/A"
+        }`
+      );
+      console.log(
+        `[${this.getTimestamp()}]   📊 Cumulative PnL %: ${
+          account.cum_pnl_pct?.toFixed(2) || "N/A"
+        }%`
+      );
+
+      if (account.positions && typeof account.positions === "object") {
         const positionCount = Object.keys(account.positions).length;
-        console.log(`[${this.getTimestamp()}]   📈 Active Positions: ${positionCount}`);
-        
+        console.log(
+          `[${this.getTimestamp()}]   📈 Active Positions: ${positionCount}`
+        );
+
         Object.entries(account.positions).forEach(([symbol, position]) => {
           const isNewPosition = !this.seenPositions.has(position.entry_oid);
           const statusIcon = isNewPosition ? "🆕" : "📊";
           const pnlIcon = position.unrealized_pnl >= 0 ? "📈" : "📉";
-          
+
           console.log(`[${this.getTimestamp()}]   ${statusIcon} ${symbol}:`);
-          console.log(`[${this.getTimestamp()}]     💰 Entry Price: $${position.entry_price}`);
-          console.log(`[${this.getTimestamp()}]     📊 Current Price: $${position.current_price}`);
-          console.log(`[${this.getTimestamp()}]     ${pnlIcon} Unrealized PnL: $${position.unrealized_pnl?.toFixed(2) || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}]     ⚡ Leverage: ${position.leverage}x`);
-          console.log(`[${this.getTimestamp()}]     📦 Quantity: ${position.quantity}`);
-          console.log(`[${this.getTimestamp()}]     🎯 Confidence: ${position.confidence}`);
-          console.log(`[${this.getTimestamp()}]     🆔 Entry OID: ${position.entry_oid}`);
-          console.log(`[${this.getTimestamp()}]     💸 Commission: $${position.commission}`);
-          console.log(`[${this.getTimestamp()}]     🎯 Margin: $${position.margin?.toFixed(2) || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}]     🛑 Stop Loss: $${position.exit_plan?.stop_loss || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}]     🎯 Profit Target: $${position.exit_plan?.profit_target || 'N/A'}`);
+          console.log(
+            `[${this.getTimestamp()}]     💰 Entry Price: $${
+              position.entry_price
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     📊 Current Price: $${
+              position.current_price
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     ${pnlIcon} Unrealized PnL: $${
+              position.unrealized_pnl?.toFixed(2) || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     ⚡ Leverage: ${position.leverage}x`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     📦 Quantity: ${position.quantity}`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     🎯 Confidence: ${position.confidence}`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     🆔 Entry OID: ${position.entry_oid}`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     💸 Commission: $${
+              position.commission
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     🎯 Margin: $${
+              position.margin?.toFixed(2) || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     🛑 Stop Loss: $${
+              position.exit_plan?.stop_loss || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}]     🎯 Profit Target: $${
+              position.exit_plan?.profit_target || "N/A"
+            }`
+          );
           console.log(`[${this.getTimestamp()}]     ---`);
         });
       } else {
@@ -216,7 +282,7 @@ class DeepSeekCopyTrader {
     for (const account of accounts) {
       const { model_id, positions } = account;
 
-      if (!positions || typeof positions !== 'object') {
+      if (!positions || typeof positions !== "object") {
         continue;
       }
 
@@ -231,7 +297,7 @@ class DeepSeekCopyTrader {
           current_price,
           unrealized_pnl,
           confidence,
-          exit_plan
+          exit_plan,
         } = position;
 
         if (!entry_oid || entry_oid === -1) {
@@ -249,17 +315,37 @@ class DeepSeekCopyTrader {
           console.log(
             `[${this.getTimestamp()}] 🚨 NEW ${model_id.toUpperCase()} POSITION OPENED! 🚨`
           );
-          console.log(`[${this.getTimestamp()}] ${modelIcon} Model: ${model_id}`);
+          console.log(
+            `[${this.getTimestamp()}] ${modelIcon} Model: ${model_id}`
+          );
           console.log(`[${this.getTimestamp()}] 📊 Symbol: ${symbol}`);
-          console.log(`[${this.getTimestamp()}] 💰 Entry Price: $${entry_price}`);
-          console.log(`[${this.getTimestamp()}] 📊 Current Price: $${current_price}`);
+          console.log(
+            `[${this.getTimestamp()}] 💰 Entry Price: $${entry_price}`
+          );
+          console.log(
+            `[${this.getTimestamp()}] 📊 Current Price: $${current_price}`
+          );
           console.log(`[${this.getTimestamp()}] ⚡ Leverage: ${leverage}x`);
           console.log(`[${this.getTimestamp()}] 📦 Quantity: ${quantity}`);
           console.log(`[${this.getTimestamp()}] 🎯 Confidence: ${confidence}`);
-          console.log(`[${this.getTimestamp()}] 📈 Unrealized PnL: $${unrealized_pnl?.toFixed(2) || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}] 🛑 Stop Loss: $${exit_plan?.stop_loss || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}] 🎯 Profit Target: $${exit_plan?.profit_target || 'N/A'}`);
-          console.log(`[${this.getTimestamp()}] ------------------------------`);
+          console.log(
+            `[${this.getTimestamp()}] 📈 Unrealized PnL: $${
+              unrealized_pnl?.toFixed(2) || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}] 🛑 Stop Loss: $${
+              exit_plan?.stop_loss || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}] 🎯 Profit Target: $${
+              exit_plan?.profit_target || "N/A"
+            }`
+          );
+          console.log(
+            `[${this.getTimestamp()}] ------------------------------`
+          );
 
           // Call the placeholder function
           await this.openTrade(
@@ -269,7 +355,7 @@ class DeepSeekCopyTrader {
             quantity,
             entry_time,
             entry_oid,
-            'long', // Default to long, could be determined by quantity sign
+            "long", // Default to long, could be determined by quantity sign
             model_id
           );
         }
